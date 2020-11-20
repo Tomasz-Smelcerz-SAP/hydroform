@@ -50,7 +50,7 @@ func (e *Engine) installPrerequisites(ctx context.Context, statusChan chan<- com
 			//Context is canceled or timed-out. Skip processing
 			return
 		}
-		err := prerequisite.InstallComponent()
+		err := prerequisite.InstallComponent(ctx)
 		if err != nil {
 			prerequisite.Status = components.StatusError
 		} else {
@@ -69,7 +69,7 @@ func (e *Engine) uninstallPrerequisites(ctx context.Context, statusChan chan<- c
 			return
 		}
 		prereq := prerequisites[i]
-		err := prereq.UninstallComponent()
+		err := prereq.UninstallComponent(ctx)
 		if err != nil {
 			prereq.Status = components.StatusError
 		} else {
@@ -200,14 +200,14 @@ func worker(ctx context.Context, wg *sync.WaitGroup, jobChan <-chan components.C
 			}
 			if ok {
 				if installationType == "install" {
-					if err := component.InstallComponent(); err != nil {
+					if err := component.InstallComponent(ctx); err != nil {
 						component.Status = components.StatusError
 					} else {
 						component.Status = components.StatusInstalled
 					}
 					statusChan <- component
 				} else if installationType == "uninstall" {
-					if err := component.UninstallComponent(); err != nil {
+					if err := component.UninstallComponent(ctx); err != nil {
 						component.Status = components.StatusError
 					} else {
 						component.Status = components.StatusUninstalled

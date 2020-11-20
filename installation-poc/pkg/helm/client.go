@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -24,8 +25,8 @@ type Client struct {
 }
 
 type ClientInterface interface {
-	InstallRelease(chartDir, namespace, name string, overrides map[string]interface{}) error
-	UninstallRelease(namespace, name string) error
+	InstallRelease(ctx context.Context, chartDir, namespace, name string, overrides map[string]interface{}) error
+	UninstallRelease(ctx context.Context, namespace, name string) error
 }
 
 func NewClient(cfg Config) *Client {
@@ -34,7 +35,7 @@ func NewClient(cfg Config) *Client {
 	}
 }
 
-func (c *Client) UninstallRelease(namespace, name string) error {
+func (c *Client) UninstallRelease(ctx context.Context, namespace, name string) error {
 
 	cfg, err := newActionConfig(namespace)
 	if err != nil {
@@ -45,6 +46,7 @@ func (c *Client) UninstallRelease(namespace, name string) error {
 	uninstall.Timeout = time.Duration(c.cfg.HelmTimeoutSeconds) * time.Second
 
 	operation := func() error {
+		log.Printf("starting helm uninstall for release %s in namespace %s", name, namespace)
 		rel, err := uninstall.Run(name)
 		if err != nil {
 			//TODO: Find a better way. Maybe explicit check before uninstalling?
@@ -65,12 +67,11 @@ func (c *Client) UninstallRelease(namespace, name string) error {
 		return nil
 	}
 
-	//TODO: Find a way to stop backoff once we have Context cancel() function invoked by the global installation timetout.
 	exponentialBackoff := backoff.NewExponentialBackOff()
 	exponentialBackoff.InitialInterval = time.Duration(c.cfg.BackoffInitialIntervalSeconds) * time.Second
 	exponentialBackoff.MaxElapsedTime = time.Duration(c.cfg.BackoffMaxElapsedTimeSeconds) * time.Second
 
-	err = backoff.Retry(operation, exponentialBackoff)
+	err = backoff.Retry(operation, backoff.WithContext(exponentialBackoff, ctx))
 	if err != nil {
 		return fmt.Errorf("Failed to uninstall %s within the given timeout. Error: %v", name, err)
 	}
@@ -78,7 +79,7 @@ func (c *Client) UninstallRelease(namespace, name string) error {
 	return nil
 }
 
-func (c *Client) InstallRelease(chartDir, namespace, name string, overrides map[string]interface{}) error {
+func (c *Client) InstallRelease(ctx context.Context, chartDir, namespace, name string, overrides map[string]interface{}) error {
 	cfg, err := newActionConfig(namespace)
 	if err != nil {
 		return err
@@ -98,6 +99,7 @@ func (c *Client) InstallRelease(chartDir, namespace, name string, overrides map[
 	install.Timeout = time.Duration(c.cfg.HelmTimeoutSeconds) * time.Second
 
 	operation := func() error {
+		log.Printf("starting helm install for release %s in namespace %s", name, namespace)
 		rel, err := install.Run(chart, overrides)
 		if err != nil {
 			return err
@@ -119,7 +121,7 @@ func (c *Client) InstallRelease(chartDir, namespace, name string, overrides map[
 	exponentialBackoff.InitialInterval = time.Duration(c.cfg.BackoffInitialIntervalSeconds) * time.Second
 	exponentialBackoff.MaxElapsedTime = time.Duration(c.cfg.BackoffMaxElapsedTimeSeconds) * time.Second
 
-	err = backoff.Retry(operation, exponentialBackoff)
+	err = backoff.Retry(operation, backoff.WithContext(exponentialBackoff, ctx))
 	if err != nil {
 		return fmt.Errorf("Failed to install %s within the given timeout. Error: %v", name, err)
 	}

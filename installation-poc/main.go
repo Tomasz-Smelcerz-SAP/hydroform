@@ -19,7 +19,7 @@ func main() {
 	}
 
 	resourcesPath := filepath.Join(goPath, "src", "github.com", "kyma-project", "kyma", "resources")
-	kubeconfigPath := "/Users/I517624/.kube/config" // TODO
+	kubeconfigPath := "/Users/i303773/Downloads/kubeconfig--goatz--tsm-1.yaml"
 
 	restConfig, err := getClientConfig(kubeconfigPath)
 	if err != nil {
