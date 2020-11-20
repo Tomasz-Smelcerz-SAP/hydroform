@@ -102,6 +102,7 @@ func (c *Client) InstallRelease(ctx context.Context, chartDir, namespace, name s
 		log.Printf("starting helm install for release %s in namespace %s", name, namespace)
 		rel, err := install.Run(chart, overrides)
 		if err != nil {
+			log.Print(err)
 			return err
 		}
 
