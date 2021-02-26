@@ -4,12 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/avast/retry-go"
-	"k8s.io/client-go/dynamic"
 	"os"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
+	"github.com/avast/retry-go"
+	"k8s.io/client-go/dynamic"
 
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/config"
@@ -82,11 +81,11 @@ func main() {
 		}()
 	}
 
-	kubeClient, err := kubernetes.NewForConfig(restConfig)
-	if err != nil {
-		log.Error("Failed to create kube client. Exiting...")
-		os.Exit(1)
-	}
+	//	kubeClient, err := kubernetes.NewForConfig(restConfig)
+	//	if err != nil {
+	//		log.Error("Failed to create kube client. Exiting...")
+	//		os.Exit(1)
+	//	}
 
 	dynamicClient, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
@@ -101,56 +100,20 @@ func main() {
 	}
 
 	//Prepare cluster before Kyma installation
-	preInstallerCfg := preinstaller.Config{
-		InstallationResourcePath: installationCfg.InstallationResourcePath,
-		Log:                      installationCfg.Log,
-	}
+	//	preInstallerCfg := preinstaller.Config{
+	//		InstallationResourcePath: installationCfg.InstallationResourcePath,
+	//		Log:                      installationCfg.Log,
+	//	}
 
 	resourceManager := preinstaller.NewDefaultResourceManager(dynamicClient, commonRetryOpts)
 	resourceApplier := preinstaller.NewGenericResourceApplier(installationCfg.Log, resourceManager)
-	preInstaller := preinstaller.NewPreInstaller(resourceApplier, preInstallerCfg, dynamicClient, commonRetryOpts)
 
-	_, err = preInstaller.InstallCRDs()
+	log.Info("About to create test ConfigMap")
+	err = resourceApplier.Apply(fmt.Sprintf("%s/src/github.com/kyma-incubator/hydroform/parallel-install/pkg/test/data/resources/correct/crds/comp1/crd.yaml", goPath))
 	if err != nil {
-		log.Errorf("Failed to install CRDs: %s", err)
+		log.Error(err)
 	}
-
-	_, err = preInstaller.CreateNamespaces()
-	if err != nil {
-		log.Errorf("Failed to create namespaces: %s", err)
-	}
-
-	//Deploy Kyma
-	deployer, err := deployment.NewDeployment(installationCfg, builder, kubeClient, progressCh)
-	if err != nil {
-		log.Fatalf("Failed to create installer: %v", err)
-	}
-
-	err = deployer.StartKymaDeployment()
-	if err != nil {
-		log.Errorf("Failed to deploy Kyma: %v", err)
-	} else {
-		log.Info("Kyma deployed!")
-	}
-
-	kymaMeta, err := deployer.ReadKymaMetadata()
-	if err != nil {
-		log.Errorf("Failed to read Kyma metadata: %v", err)
-	}
-
-	log.Infof("Kyma version: %s", kymaMeta.Version)
-	log.Infof("Kyma status: %s", kymaMeta.Status)
-
-	//Delete Kyma
-	deleter, err := deployment.NewDeletion(installationCfg, builder, kubeClient, progressCh)
-	if err != nil {
-		log.Fatalf("Failed to create deleter: %v", err)
-	}
-	err = deleter.StartKymaUninstallation()
-	if err != nil {
-		log.Fatalf("Failed to uninstall Kyma: %v", err)
-	}
-	log.Info("Kyma uninstalled!")
+	log.Info("Done")
 }
 
 func getClientConfig(kubeconfig string) (*rest.Config, error) {

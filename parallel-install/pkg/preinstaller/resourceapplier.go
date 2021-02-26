@@ -3,17 +3,19 @@ package preinstaller
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"strings"
+	"time"
+
 	"github.com/ghodss/yaml"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/logger"
 	"github.com/pkg/errors"
-	"io/ioutil"
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"strings"
 )
 
 // ResourceApplier creates a new resource from manifest on k8s cluster.
@@ -57,13 +59,25 @@ func (c *GenericResourceApplier) Apply(path string) error {
 	}
 
 	resourceName := resource.GetName()
+	c.log.Info("Getting resource")
 	obj, err := c.resourceManager.GetResource(resourceName, resourceSchema)
 	if err != nil {
-		return err
+		c.log.Error(err)
+		//return err
 	}
 
 	if obj != nil {
 		c.log.Infof("Resource: %s already exists. Performing update.", resourceName)
+
+		//Artificial sleep so I am able to update object manually. In real system, another update can just happen now.
+		c.log.Info("Sleeping #1")
+		time.Sleep(10 * time.Second)
+		c.log.Info("Sleeping #2")
+		time.Sleep(10 * time.Second)
+		c.log.Info("Sleeping #3")
+		time.Sleep(10 * time.Second)
+		c.log.Info("Sleeping #4")
+		time.Sleep(10 * time.Second)
 
 		_, err = c.resourceManager.UpdateResource(resource, resourceSchema)
 		if err != nil {

@@ -2,6 +2,8 @@ package preinstaller
 
 import (
 	"context"
+	"fmt"
+
 	"github.com/avast/retry-go"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -42,6 +44,7 @@ func (c *DefaultResourceManager) CreateResource(resource *unstructured.Unstructu
 	var err error
 	err = retry.Do(func() error {
 		if _, err = c.dynamicClient.Resource(resourceSchema).Create(context.TODO(), resource, metav1.CreateOptions{}); err != nil {
+			fmt.Printf("%#v", err)
 			return err
 		}
 
@@ -52,15 +55,20 @@ func (c *DefaultResourceManager) CreateResource(resource *unstructured.Unstructu
 }
 
 func (c *DefaultResourceManager) GetResource(resourceName string, resourceSchema schema.GroupVersionResource) (obj *unstructured.Unstructured, err error) {
+
+	ro := []retry.Option{retry.Attempts(1)}
+
 	err = retry.Do(func() error {
 		obj, err = c.getResource(resourceName, resourceSchema)
 		if err != nil {
+			fmt.Printf("%#v", err)
 			return err
 		}
 
 		return err
 
-	}, c.retryOptions...)
+		//}, c.retryOptions...)
+	}, ro...)
 
 	return obj, err
 }
@@ -69,6 +77,7 @@ func (c *DefaultResourceManager) UpdateResource(resource *unstructured.Unstructu
 	err = retry.Do(func() error {
 		obj, err = c.updateResource(resource, resourceSchema)
 		if err != nil {
+			fmt.Printf("%#v", err)
 			return err
 		}
 
